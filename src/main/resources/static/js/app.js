@@ -111,6 +111,39 @@ function resetWizard() {
     document.getElementById('modeSelection').classList.remove('hidden');
 }
 
+function restartCurrentMode() {
+    // 1. Reset selection state for current mode
+    if (currentMode === 'encrypt') {
+        selectedFiles.encrypt = null;
+        document.getElementById('encryptFileSelect').value = '';
+        document.getElementById('encryptFileName').textContent = '';
+        document.getElementById('encryptFileInfo').classList.add('hidden');
+        document.getElementById('encryptNextBtn').disabled = true;
+
+        // Hide Step 3, Show Step 1
+        document.getElementById('encryptStep3').classList.add('hidden');
+        document.getElementById('encryptStep1').classList.remove('hidden');
+    } else if (currentMode === 'decrypt') {
+        selectedFiles.decrypt = { file: null, dek: null };
+        document.getElementById('decryptFileSelect').value = '';
+        document.getElementById('decryptDekSelect').value = '';
+        document.getElementById('decryptNextBtn').disabled = true;
+
+        // Hide Step 3, Show Step 1
+        document.getElementById('decryptStep3').classList.add('hidden');
+        document.getElementById('decryptStep1').classList.remove('hidden');
+    }
+
+    // 2. Refresh file lists to show any newly created files
+    refreshFileList();
+
+    // 3. Reset progress bar for next run (optional visual cleanup)
+    updateProgress(currentMode, 0, 'Preparing...');
+
+    // 4. Update wizard steps
+    updateWizardStep(1);
+}
+
 function updateWizardStep(step) {
     currentStep = step;
     const steps = document.querySelectorAll('.wizard-step');
