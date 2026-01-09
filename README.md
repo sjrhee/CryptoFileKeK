@@ -1,7 +1,7 @@
 # 파일 암호화 시스템 (File Encryption System)
 
 이 프로젝트는 HSM(Hardware Security Module)과 연동하여 파일을 안전하게 암호화하고 복호화하는 Spring Boot 기반의 웹 애플리케이션입니다.
-영문 웹 인터페이스를 제공하며, 암호화 키(DEK)는 HSM의 KEK(Key Encryption Key)로 이중 보호됩니다.
+암호화 키(DEK)는 HSM의 KEK(Key Encryption Key)로 이중 보호됩니다.
 
 ## 주요 기능 (Features)
 
