@@ -204,26 +204,35 @@ async function processEncryption() {
             document.getElementById('encryptStep3').classList.remove('hidden');
             updateWizardStep(3);
 
-            document.getElementById('resultOriginalName').textContent = result.originalFilename;
-            document.getElementById('resultOriginalSize').textContent = formatFileSize(result.originalSize);
-            document.getElementById('resultEncryptedSize').textContent = formatFileSize(result.encryptedSize);
-            document.getElementById('resultEncryptedName').textContent = result.encryptedFilename;
-            console.log(" Encryption Result Object:", result);
-            console.log(" Encrypted DEK value:", result.encryptedDek);
 
-            const dekElement = document.getElementById('dekDisplayArea');
+            // Safely update Original Name
+            const elOrigName = document.getElementById('resultOriginalName');
+            if (elOrigName) elOrigName.textContent = result.originalFilename || '-';
+
+            // Safely update Original Size
+            const elOrigSize = document.getElementById('resultOriginalSize');
+            if (elOrigSize) elOrigSize.textContent = formatFileSize(result.originalSize);
+
+            // Safely update Encrypted Size
+            const elEncSize = document.getElementById('resultEncryptedSize');
+            if (elEncSize) elEncSize.textContent = formatFileSize(result.encryptedSize);
+
+            // Safely update Encrypted Name
+            const elEncName = document.getElementById('resultEncryptedName');
+            if (elEncName) {
+                elEncName.textContent = result.encryptedFilename || '-';
+            }
+
+            const dekElement = document.getElementById('resultEncryptedDek');
             if (dekElement) {
-                console.log(" Found DEK Element:", dekElement);
                 const dekValue = result.encryptedDek;
                 if (dekValue && dekValue.length > 0) {
                     dekElement.textContent = dekValue;
+                    dekElement.style.color = 'white'; // Ensure white color
                 } else {
                     dekElement.textContent = '(Error: Server returned empty key)';
-                    dekElement.style.color = '#ff6b6b'; // Red color for error
+                    dekElement.style.color = '#ff6b6b';
                 }
-                console.log(" Set DEK Element text to:", dekElement.textContent);
-            } else {
-                console.error(" CRITICAL: Could not find element with ID 'dekDisplayArea'");
             }
 
             refreshFileList(); // Update lists for next time
