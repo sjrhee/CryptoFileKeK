@@ -55,13 +55,13 @@ async function refreshFileList() {
 
     } catch (error) {
         console.error('Failed to load file list', error);
-        showError('파일 목록을 불러오지 못했습니다.');
+        showError('Failed to load file list.');
     }
 }
 
 function populateSelect(selectElement, files, filterFn) {
     const currentVal = selectElement.value;
-    selectElement.innerHTML = '<option value="">파일을 선택하세요...</option>';
+    selectElement.innerHTML = '<option value="">Select a file...</option>';
 
     files.filter(filterFn).forEach(file => {
         const option = document.createElement('option');
@@ -143,7 +143,7 @@ async function processEncryption() {
         updateWizardStep(2);
 
         // Select File (server-side)
-        updateProgress('encrypt', 20, '파일 확인 중...');
+        updateProgress('encrypt', 20, 'Checking file...');
 
         const selectResponse = await fetch('/api/encrypt/select', {
             method: 'POST',
@@ -155,7 +155,7 @@ async function processEncryption() {
         const fileId = selectResult.data.fileId;
 
         // Process Encryption
-        updateProgress('encrypt', 50, '암호화 및 저장 중...');
+        updateProgress('encrypt', 50, 'Encrypting and saving...');
         const processResponse = await fetch(`/api/encrypt/process/${fileId}`, {
             method: 'POST'
         });
@@ -164,7 +164,7 @@ async function processEncryption() {
         const result = processResult.data;
 
         // Complete
-        updateProgress('encrypt', 100, '완료!');
+        updateProgress('encrypt', 100, 'Complete!');
 
         setTimeout(() => {
             document.getElementById('encryptStep2').classList.add('hidden');
@@ -197,7 +197,7 @@ async function processDecryption() {
         updateWizardStep(2);
 
         // Select Files (server-side)
-        updateProgress('decrypt', 20, '파일 확인 중...');
+        updateProgress('decrypt', 20, 'Checking files...');
 
         const selectResponse = await fetch('/api/decrypt/select', {
             method: 'POST',
@@ -212,7 +212,7 @@ async function processDecryption() {
         const fileId = selectResult.data.fileId;
 
         // Process Decryption
-        updateProgress('decrypt', 50, '복호화 및 저장 중...');
+        updateProgress('decrypt', 50, 'Decrypting and saving...');
         const processResponse = await fetch(`/api/decrypt/process/${fileId}`, {
             method: 'POST'
         });
@@ -221,7 +221,7 @@ async function processDecryption() {
         const result = processResult.data;
 
         // Complete
-        updateProgress('decrypt', 100, '완료!');
+        updateProgress('decrypt', 100, 'Complete!');
 
         setTimeout(() => {
             document.getElementById('decryptStep2').classList.add('hidden');

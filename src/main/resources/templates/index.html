@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>파일 암호화 시스템 - File Encryption System</title>
-    <meta name="description" content="HSM 기반 파일 암호화 및 복호화 시스템">
+    <title>File Encryption System</title>
+    <meta name="description" content="HSM-based File Encryption and Decryption System">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -44,8 +44,8 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>🔐 파일 암호화 시스템</h1>
-            <p>HSM 기반 안전한 파일 암호화 및 복호화 (서버 파일 처리)</p>
+            <h1>🔐 File Encryption System</h1>
+            <p>Secure File Encryption & Decryption with HSM (Server-Side File Processing)</p>
         </div>
 
         <!-- Main Card -->
@@ -54,31 +54,31 @@
             <div id="wizardSteps" class="wizard-steps hidden">
                 <div class="wizard-step" data-step="1">
                     <div class="step-number">1</div>
-                    <div class="step-label">파일 선택</div>
+                    <div class="step-label">Select File</div>
                 </div>
                 <div class="wizard-step" data-step="2">
                     <div class="step-number">2</div>
-                    <div class="step-label">처리</div>
+                    <div class="step-label">Processing</div>
                 </div>
                 <div class="wizard-step" data-step="3">
                     <div class="step-number">3</div>
-                    <div class="step-label">완료</div>
+                    <div class="step-label">Complete</div>
                 </div>
             </div>
 
             <!-- Mode Selection Screen -->
             <div id="modeSelection">
-                <h2 style="text-align: center; margin-bottom: 2rem;">작업 모드를 선택하세요</h2>
+                <h2 style="text-align: center; margin-bottom: 2rem;">Select Operation Mode</h2>
                 <div class="mode-selection">
                     <div class="mode-card" onclick="selectMode('encrypt')">
                         <div class="mode-icon">🔒</div>
-                        <h3>암호화</h3>
-                        <p>서버 Input 폴더의 파일을 암호화합니다</p>
+                        <h3>Encrypt</h3>
+                        <p>Encrypt files located in the server's DATA directory</p>
                     </div>
                     <div class="mode-card" onclick="selectMode('decrypt')">
                         <div class="mode-icon">🔓</div>
-                        <h3>복호화</h3>
-                        <p>서버 Input 폴더의 암호화된 파일을 복원합니다</p>
+                        <h3>Decrypt</h3>
+                        <p>Restore encrypted files located in the server's DATA directory</p>
                     </div>
                 </div>
             </div>
@@ -87,70 +87,70 @@
             <div id="encryptWizard" class="hidden">
                 <!-- Step 1: Select File -->
                 <div id="encryptStep1" class="wizard-content">
-                    <h2>파일 선택</h2>
+                    <h2>Select File</h2>
                     <p style="color: var(--text-secondary);">
-                        서버의 Input 디렉토리에서 암호화할 파일을 선택하세요
+                        Choose a file from the server's DATA directory to encrypt
                     </p>
-                    <button class="refresh-btn" onclick="refreshFileList()">🔄 파일 목록 새로고침</button>
+                    <button class="refresh-btn" onclick="refreshFileList()">🔄 Refresh File List</button>
 
                     <select id="encryptFileSelect" class="file-list-select">
-                        <option value="">파일을 선택하세요...</option>
+                        <option value="">Select a file...</option>
                     </select>
 
                     <div id="encryptFileInfo" class="file-info hidden">
                         <div class="file-info-item">
-                            <span class="label">선택된 파일:</span>
+                            <span class="label">Selected File:</span>
                             <span class="value" id="encryptFileName"></span>
                         </div>
                     </div>
 
                     <div class="btn-group">
-                        <button class="btn btn-secondary" onclick="resetWizard()">취소</button>
+                        <button class="btn btn-secondary" onclick="resetWizard()">Cancel</button>
                         <button class="btn btn-primary" id="encryptNextBtn" onclick="processEncryption()" disabled>
-                            다음: 암호화 진행
+                            Next: Start Encryption
                         </button>
                     </div>
                 </div>
 
                 <!-- Step 2: Processing -->
                 <div id="encryptStep2" class="wizard-content hidden">
-                    <h2>암호화 진행 중</h2>
+                    <h2>Encrypting...</h2>
                     <div class="progress-container">
                         <div class="progress-bar">
                             <div class="progress-fill" id="encryptProgress" style="width: 0%"></div>
                         </div>
-                        <div class="progress-text" id="encryptProgressText">준비 중...</div>
+                        <div class="progress-text" id="encryptProgressText">Preparing...</div>
                     </div>
                     <div id="encryptSpinner" class="spinner"></div>
                 </div>
 
                 <!-- Step 3: Results -->
                 <div id="encryptStep3" class="wizard-content hidden">
-                    <h2>암호화 완료</h2>
+                    <h2>Encryption Complete</h2>
                     <div class="alert alert-success">
-                        ✅ 파일이 성공적으로 암호화되어 Output 폴더에 저장되었습니다!
+                        ✅ File encrypted successfully and saved to the DATA directory!
                     </div>
 
                     <div class="result-item">
-                        <h4>📊 암호화 정보</h4>
+                        <h4>📊 Encryption Details</h4>
                         <div class="result-detail">
-                            <span class="label">원본 파일:</span>
+                            <span class="label">Original File:</span>
                             <span class="value" id="resultOriginalName"></span>
                         </div>
                         <div class="result-detail">
-                            <span class="label">저장 위치:</span>
-                            <span class="value">files/output/</span>
+                            <span class="label">Save Location:</span>
+                            <span class="value">DATA/</span>
                         </div>
                         <div class="result-detail">
-                            <span class="label">암호화 파일명:</span>
+                            <span class="label">Encrypted Filename:</span>
                             <span class="value" id="resultEncryptedName"></span>
                         </div>
                     </div>
 
                     <div class="result-item">
-                        <h4>🔑 DEK 정보</h4>
+                        <h4>🔑 DEK Information</h4>
                         <div class="result-detail">
-                            <span class="label">암호화된 DEK:</span>
+                            <span class="label">Encrypted DEK:</span>
                             <span class="value"
                                 style="font-family: monospace; font-size: 0.8rem; word-break: break-all;"
                                 id="resultEncryptedDek"></span>
@@ -159,9 +159,8 @@
 
                     <div class="btn-group" style="margin-top: 1rem;">
                         <button class="btn btn-secondary" onclick="resetWizard()">
-                            새로운 작업 시작
+                            Start New Operation
                         </button>
-                        <!-- Download buttons removed as per requirement -->
                     </div>
                 </div>
             </div>
@@ -170,68 +169,68 @@
             <div id="decryptWizard" class="hidden">
                 <!-- Step 1: Select Files -->
                 <div id="decryptStep1" class="wizard-content">
-                    <h2>파일 선택</h2>
+                    <h2>Select Files</h2>
                     <p style="color: var(--text-secondary);">
-                        서버의 Input 디렉토리에서 암호화된 파일과 DEK 파일을 선택하세요
+                        Select the encrypted file and DEK file from the server's DATA directory
                     </p>
-                    <button class="refresh-btn" onclick="refreshFileList()">🔄 파일 목록 새로고침</button>
+                    <button class="refresh-btn" onclick="refreshFileList()">🔄 Refresh File List</button>
 
                     <div style="margin-bottom: 1rem;">
-                        <label>암호화된 파일 (.encrypted)</label>
+                        <label>Encrypted File (.encrypted)</label>
                         <select id="decryptFileSelect" class="file-list-select">
-                            <option value="">파일을 선택하세요...</option>
+                            <option value="">Select a file...</option>
                         </select>
                     </div>
 
                     <div style="margin-bottom: 1rem;">
-                        <label>DEK 파일 (.dek)</label>
+                        <label>DEK File (.dek)</label>
                         <select id="decryptDekSelect" class="file-list-select">
-                            <option value="">파일을 선택하세요...</option>
+                            <option value="">Select a file...</option>
                         </select>
                     </div>
 
                     <div class="btn-group">
-                        <button class="btn btn-secondary" onclick="resetWizard()">취소</button>
+                        <button class="btn btn-secondary" onclick="resetWizard()">Cancel</button>
                         <button class="btn btn-primary" id="decryptNextBtn" onclick="processDecryption()" disabled>
-                            다음: 복호화 진행
+                            Next: Start Decryption
                         </button>
                     </div>
                 </div>
 
                 <!-- Step 2: Processing -->
                 <div id="decryptStep2" class="wizard-content hidden">
-                    <h2>복호화 진행 중</h2>
+                    <h2>Decrypting...</h2>
                     <div class="progress-container">
                         <div class="progress-bar">
                             <div class="progress-fill" id="decryptProgress" style="width: 0%"></div>
                         </div>
-                        <div class="progress-text" id="decryptProgressText">준비 중...</div>
+                        <div class="progress-text" id="decryptProgressText">Preparing...</div>
                     </div>
                     <div id="decryptSpinner" class="spinner"></div>
                 </div>
 
                 <!-- Step 3: Results -->
                 <div id="decryptStep3" class="wizard-content hidden">
-                    <h2>복호화 완료</h2>
+                    <h2>Decryption Complete</h2>
                     <div class="alert alert-success">
-                        ✅ 파일이 성공적으로 복호화되어 Output 폴더에 저장되었습니다!
+                        ✅ File decrypted successfully and saved to the DATA directory!
                     </div>
 
                     <div class="result-item">
-                        <h4>📊 복호화 정보</h4>
+                        <h4>📊 Decryption Details</h4>
                         <div class="result-detail">
-                            <span class="label">저장 위치:</span>
-                            <span class="value">files/output/</span>
+                            <span class="label">Save Location:</span>
+                            <span class="value">DATA/</span>
                         </div>
                         <div class="result-detail">
-                            <span class="label">복원된 파일명:</span>
+                            <span class="label">Restored Filename:</span>
                             <span class="value" id="resultDecryptedName"></span>
                         </div>
                     </div>
 
                     <div class="btn-group" style="margin-top: 1rem;">
                         <button class="btn btn-secondary" onclick="resetWizard()">
-                            새로운 작업 시작
+                            Start New Operation
                         </button>
                     </div>
                 </div>
