@@ -1,0 +1,40 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: file-encryption-system
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 100MB
+      max-request-size: 100MB
+  thymeleaf:
+    cache: false
+
+# File storage configuration
+file:
+  storage:
+    location: ./temp-storage
+    cleanup-interval: 3600000  # 1 hour in milliseconds
+
+# HSM configuration (placeholder for real HSM integration)
+hsm:
+  provider: simulated
+  # For real HSM, configure connection details here
+  # connection:
+  #   host: hsm.example.com
+  #   port: 1792
+  #   partition: partition1
+  #   password: ${HSM_PASSWORD}
+  kek:
+    alias: master-kek
+    algorithm: AES
+    keySize: 256
+
+# Encryption configuration
+encryption:
+  algorithm: AES/GCM/NoPadding
+  keySize: 256
+  ivSize: 12
+  tagSize: 128

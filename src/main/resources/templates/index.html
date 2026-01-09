@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>파일 암호화 시스템 - File Encryption System</title>
+    <meta name="description" content="HSM 기반 파일 암호화 및 복호화 시스템">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔐 파일 암호화 시스템</h1>
+            <p>HSM 기반 안전한 파일 암호화 및 복호화</p>
+        </div>
+
+        <!-- Main Card -->
+        <div class="card">
+            <!-- Wizard Steps -->
+            <div id="wizardSteps" class="wizard-steps hidden">
+                <div class="wizard-step" data-step="1">
+                    <div class="step-number">1</div>
+                    <div class="step-label">파일 선택</div>
+                </div>
+                <div class="wizard-step" data-step="2">
+                    <div class="step-number">2</div>
+                    <div class="step-label">처리</div>
+                </div>
+                <div class="wizard-step" data-step="3">
+                    <div class="step-number">3</div>
+                    <div class="step-label">완료</div>
+                </div>
+            </div>
+
+            <!-- Mode Selection Screen -->
+            <div id="modeSelection">
+                <h2 style="text-align: center; margin-bottom: 2rem;">작업 모드를 선택하세요</h2>
+                <div class="mode-selection">
+                    <div class="mode-card" onclick="selectMode('encrypt')">
+                        <div class="mode-icon">🔒</div>
+                        <h3>암호화</h3>
+                        <p>파일을 암호화하고 DEK를 HSM KEK로 보호합니다</p>
+                    </div>
+                    <div class="mode-card" onclick="selectMode('decrypt')">
+                        <div class="mode-icon">🔓</div>
+                        <h3>복호화</h3>
+                        <p>암호화된 파일과 DEK를 사용하여 원본 파일을 복원합니다</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Encryption Wizard -->
+            <div id="encryptWizard" class="hidden">
+                <!-- Step 1: Upload File -->
+                <div id="encryptStep1" class="wizard-content">
+                    <h2>파일 업로드</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                        암호화할 파일을 선택하세요
+                    </p>
+                    
+                    <div class="file-upload-area" id="encryptUploadArea">
+                        <div class="upload-icon">📁</div>
+                        <p>클릭하거나 파일을 드래그하여 업로드</p>
+                        <input type="file" id="encryptFileInput" accept="*/*">
+                    </div>
+
+                    <div id="encryptFileInfo" class="file-info hidden">
+                        <div class="file-info-item">
+                            <span class="label">파일명:</span>
+                            <span class="value" id="encryptFileName"></span>
+                        </div>
+                        <div class="file-info-item">
+                            <span class="label">크기:</span>
+                            <span class="value" id="encryptFileSize"></span>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="resetWizard()">취소</button>
+                        <button class="btn btn-primary" id="encryptNextBtn" onclick="processEncryption()" disabled>
+                            다음: 암호화 진행
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Processing -->
+                <div id="encryptStep2" class="wizard-content hidden">
+                    <h2>암호화 진행 중</h2>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="encryptProgress" style="width: 0%"></div>
+                        </div>
+                        <div class="progress-text" id="encryptProgressText">준비 중...</div>
+                    </div>
+                    <div id="encryptSpinner" class="spinner"></div>
+                </div>
+
+                <!-- Step 3: Results -->
+                <div id="encryptStep3" class="wizard-content hidden">
+                    <h2>암호화 완료</h2>
+                    <div class="alert alert-success">
+                        ✅ 파일이 성공적으로 암호화되었습니다!
+                    </div>
+
+                    <div class="result-item">
+                        <h4>📊 암호화 정보</h4>
+                        <div class="result-detail">
+                            <span class="label">원본 파일:</span>
+                            <span class="value" id="resultOriginalName"></span>
+                        </div>
+                        <div class="result-detail">
+                            <span class="label">원본 크기:</span>
+                            <span class="value" id="resultOriginalSize"></span>
+                        </div>
+                        <div class="result-detail">
+                            <span class="label">암호화 크기:</span>
+                            <span class="value" id="resultEncryptedSize"></span>
+                        </div>
+                    </div>
+
+                    <div class="result-item">
+                        <h4>🔑 DEK 정보</h4>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 1rem;">
+                            DEK는 HSM의 KEK로 암호화되어 안전하게 보호됩니다
+                        </p>
+                        <div class="result-detail">
+                            <span class="label">암호화된 DEK:</span>
+                            <span class="value" style="font-family: monospace; font-size: 0.8rem; word-break: break-all;" id="resultEncryptedDek"></span>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="downloadEncryptedFile()">
+                            📥 암호화된 파일 다운로드
+                        </button>
+                        <button class="btn btn-success" onclick="downloadEncryptedDek()">
+                            🔑 암호화된 DEK 다운로드
+                        </button>
+                    </div>
+
+                    <div class="btn-group" style="margin-top: 1rem;">
+                        <button class="btn btn-secondary" onclick="resetWizard()">
+                            새로운 작업 시작
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Decryption Wizard -->
+            <div id="decryptWizard" class="hidden">
+                <!-- Step 1: Upload Files -->
+                <div id="decryptStep1" class="wizard-content">
+                    <h2>파일 업로드</h2>
+                    <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">
+                        암호화된 파일과 DEK 파일을 모두 선택하세요
+                    </p>
+                    
+                    <div class="file-upload-area" id="decryptFileUploadArea" style="margin-bottom: 1rem;">
+                        <div class="upload-icon">🔒</div>
+                        <p>암호화된 파일 선택</p>
+                        <input type="file" id="decryptFileInput" accept="*/*">
+                    </div>
+
+                    <div id="decryptFileInfo" class="file-info hidden">
+                        <div class="file-info-item">
+                            <span class="label">파일명:</span>
+                            <span class="value" id="decryptFileName"></span>
+                        </div>
+                        <div class="file-info-item">
+                            <span class="label">크기:</span>
+                            <span class="value" id="decryptFileSize"></span>
+                        </div>
+                    </div>
+
+                    <div class="file-upload-area" id="decryptDekUploadArea">
+                        <div class="upload-icon">🔑</div>
+                        <p>암호화된 DEK 파일 선택</p>
+                        <input type="file" id="decryptDekInput" accept=".dek,*/*">
+                    </div>
+
+                    <div id="decryptDekInfo" class="file-info hidden">
+                        <div class="file-info-item">
+                            <span class="label">DEK 파일:</span>
+                            <span class="value" id="decryptDekName"></span>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-secondary" onclick="resetWizard()">취소</button>
+                        <button class="btn btn-primary" id="decryptNextBtn" onclick="processDecryption()" disabled>
+                            다음: 복호화 진행
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Step 2: Processing -->
+                <div id="decryptStep2" class="wizard-content hidden">
+                    <h2>복호화 진행 중</h2>
+                    <div class="progress-container">
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="decryptProgress" style="width: 0%"></div>
+                        </div>
+                        <div class="progress-text" id="decryptProgressText">준비 중...</div>
+                    </div>
+                    <div id="decryptSpinner" class="spinner"></div>
+                </div>
+
+                <!-- Step 3: Results -->
+                <div id="decryptStep3" class="wizard-content hidden">
+                    <h2>복호화 완료</h2>
+                    <div class="alert alert-success">
+                        ✅ 파일이 성공적으로 복호화되었습니다!
+                    </div>
+
+                    <div class="result-item">
+                        <h4>📊 복호화 정보</h4>
+                        <div class="result-detail">
+                            <span class="label">복원된 파일:</span>
+                            <span class="value" id="resultDecryptedName"></span>
+                        </div>
+                        <div class="result-detail">
+                            <span class="label">암호화 크기:</span>
+                            <span class="value" id="resultDecryptedEncSize"></span>
+                        </div>
+                        <div class="result-detail">
+                            <span class="label">복호화 크기:</span>
+                            <span class="value" id="resultDecryptedSize"></span>
+                        </div>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-success" onclick="downloadDecryptedFile()">
+                            📥 복호화된 파일 다운로드
+                        </button>
+                    </div>
+
+                    <div class="btn-group" style="margin-top: 1rem;">
+                        <button class="btn btn-secondary" onclick="resetWizard()">
+                            새로운 작업 시작
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Error Display -->
+            <div id="errorAlert" class="alert alert-error hidden">
+                <span id="errorMessage"></span>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/app.js"></script>
+</body>
+</html>
