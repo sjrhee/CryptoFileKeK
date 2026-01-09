@@ -13,7 +13,6 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
 
 import javax.crypto.SecretKey;
 import java.util.HashMap;
@@ -36,49 +35,49 @@ public class DecryptionController {
     private final Map<String, DecryptionSession> sessions = new HashMap<>();
 
     /**
-     * Upload encrypted file and DEK for decryption
+     * Select encrypted file and DEK for decryption
      */
-    @PostMapping("/upload")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadFiles(
-            @RequestParam("encryptedFile") MultipartFile encryptedFile,
-            @RequestParam("encryptedDek") MultipartFile encryptedDek) {
+    @PostMapping("/select")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> selectFiles(
+            @RequestBody Map<String, String> payload) {
         try {
-            if (encryptedFile.isEmpty() || encryptedDek.isEmpty()) {
+            String encryptedFilename = payload.get("encryptedFilename");
+            String dekFilename = payload.get("dekFilename");
+
+            if (encryptedFilename == null || dekFilename == null) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Please provide both encrypted file and DEK"));
+                        .body(ApiResponse.error("Please provide both encrypted file and DEK filename"));
             }
 
-            log.info("Received files for decryption: {} ({} bytes)",
-                    encryptedFile.getOriginalFilename(), encryptedFile.getSize());
+            log.info("Selected files for decryption: {}, {}", encryptedFilename, dekFilename);
 
-            // Store encrypted file
-            byte[] encryptedData = encryptedFile.getBytes();
-            String fileId = fileStorageService.storeFile(
-                    encryptedData,
-                    encryptedFile.getOriginalFilename());
+            // Load encrypted file
+            var encryptedData = fileStorageService.readFromInput(encryptedFilename);
+            var fileId = fileStorageService.storeTemp(encryptedData, encryptedFilename);
 
             // Read encrypted DEK
-            String encryptedDekBase64 = new String(encryptedDek.getBytes()).trim();
+            var dekData = fileStorageService.readFromInput(dekFilename);
+            var encryptedDekBase64 = new String(dekData).trim();
 
             // Create session
-            DecryptionSession session = new DecryptionSession();
+            var session = new DecryptionSession();
             session.fileId = fileId;
-            session.originalFilename = encryptedFile.getOriginalFilename();
+            session.originalFilename = encryptedFilename;
             session.encryptedSize = encryptedData.length;
             session.encryptedDek = encryptedDekBase64;
             sessions.put(fileId, session);
 
-            Map<String, Object> response = new HashMap<>();
+            var response = new HashMap<String, Object>();
             response.put("fileId", fileId);
-            response.put("filename", encryptedFile.getOriginalFilename());
-            response.put("size", encryptedFile.getSize());
+            response.put("filename", encryptedFilename);
+            response.put("size", encryptedData.length);
 
-            return ResponseEntity.ok(ApiResponse.success("Files uploaded successfully", response));
+            return ResponseEntity.ok(ApiResponse.success("Files selected successfully", response));
 
         } catch (Exception e) {
-            log.error("Error uploading files", e);
+            log.error("Error selecting files", e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error("Failed to upload files: " + e.getMessage()));
+                    .body(ApiResponse.error("Failed to select files: " + e.getMessage()));
         }
     }
 
@@ -98,19 +97,25 @@ public class DecryptionController {
             log.info("Processing decryption for file: {}", session.originalFilename);
 
             // Step 1: Load encrypted file
-            byte[] encryptedData = fileStorageService.loadFile(fileId);
+            var encryptedData = fileStorageService.loadTemp(fileId);
 
             // Step 2: Decrypt DEK using HSM KEK
-            SecretKey dek = dekService.decryptDekFromBase64(session.encryptedDek);
+            var dek = dekService.decryptDekFromBase64(session.encryptedDek);
             log.info("Decrypted DEK with HSM KEK");
 
             // Step 3: Decrypt file with DEK
-            byte[] decryptedData = fileEncryptionService.decryptFile(encryptedData, dek);
+            var decryptedData = fileEncryptionService.decryptFile(encryptedData, dek);
             log.info("Decrypted file with DEK");
 
-            // Step 4: Store decrypted file
+            // Step 4: Save decrypted file to output
             String decryptedFilename = session.originalFilename.replace(".encrypted", "");
-            String decryptedFileId = fileStorageService.storeFile(
+            if (decryptedFilename.equals(session.originalFilename)) {
+                decryptedFilename = "decrypted_" + session.originalFilename;
+            }
+            fileStorageService.writeToOutput(decryptedFilename, decryptedData);
+
+            // Store in temp for consistency if needed
+            var decryptedFileId = fileStorageService.storeTemp(
                     decryptedData,
                     decryptedFilename);
 
@@ -119,7 +124,7 @@ public class DecryptionController {
             session.decryptedSize = decryptedData.length;
 
             // Create result
-            DecryptionResult result = new DecryptionResult(
+            var result = new DecryptionResult(
                     decryptedFileId,
                     decryptedFilename,
                     session.encryptedSize,
@@ -148,7 +153,7 @@ public class DecryptionController {
                 return ResponseEntity.notFound().build();
             }
 
-            byte[] data = fileStorageService.loadFile(session.decryptedFileId);
+            var data = fileStorageService.loadTemp(session.decryptedFileId);
             ByteArrayResource resource = new ByteArrayResource(data);
 
             String filename = session.originalFilename.replace(".encrypted", "");

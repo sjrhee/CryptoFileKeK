@@ -1,198 +1,167 @@
 // Application State
 let currentMode = null;
 let currentStep = 1;
-let encryptionData = {};
-let decryptionData = {};
+let selectedFiles = {
+    encrypt: null,
+    decrypt: { file: null, dek: null }
+};
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function () {
-    setupFileUploadHandlers();
+    setupHandlers();
+    refreshFileList();
 });
+
+// Setup Handlers
+function setupHandlers() {
+    // Encryption File Select
+    document.getElementById('encryptFileSelect').addEventListener('change', (e) => {
+        const filename = e.target.value;
+        if (filename) {
+            document.getElementById('encryptFileName').textContent = filename;
+            document.getElementById('encryptFileInfo').classList.remove('hidden');
+            document.getElementById('encryptNextBtn').disabled = false;
+            selectedFiles.encrypt = filename;
+        } else {
+            document.getElementById('encryptFileInfo').classList.add('hidden');
+            document.getElementById('encryptNextBtn').disabled = true;
+            selectedFiles.encrypt = null;
+        }
+    });
+
+    // Decryption File Selects
+    document.getElementById('decryptFileSelect').addEventListener('change', checkDecryptReady);
+    document.getElementById('decryptDekSelect').addEventListener('change', checkDecryptReady);
+}
+
+// Refresh File List
+async function refreshFileList() {
+    try {
+        const response = await fetch('/api/files/list');
+        const result = await handleResponse(response);
+        const files = result.data;
+
+        // Populate Encrypt Select (All files except .dek?)
+        const encryptSelect = document.getElementById('encryptFileSelect');
+        populateSelect(encryptSelect, files, f => !f.endsWith('.dek') && !f.endsWith('.encrypted'));
+
+        // Populate Decrypt File Select (.encrypted only)
+        const decryptFileSelect = document.getElementById('decryptFileSelect');
+        populateSelect(decryptFileSelect, files, f => f.endsWith('.encrypted'));
+
+        // Populate Decrypt DEK Select (.dek only)
+        const decryptDekSelect = document.getElementById('decryptDekSelect');
+        populateSelect(decryptDekSelect, files, f => f.endsWith('.dek'));
+
+    } catch (error) {
+        console.error('Failed to load file list', error);
+        showError('파일 목록을 불러오지 못했습니다.');
+    }
+}
+
+function populateSelect(selectElement, files, filterFn) {
+    const currentVal = selectElement.value;
+    selectElement.innerHTML = '<option value="">파일을 선택하세요...</option>';
+
+    files.filter(filterFn).forEach(file => {
+        const option = document.createElement('option');
+        option.value = file;
+        option.textContent = file;
+        selectElement.appendChild(option);
+    });
+
+    // Maintain selection if possible
+    if (files.includes(currentVal)) {
+        selectElement.value = currentVal;
+    }
+}
 
 // Mode Selection
 function selectMode(mode) {
     currentMode = mode;
     currentStep = 1;
-
-    // Hide mode selection
     document.getElementById('modeSelection').classList.add('hidden');
-
-    // Show wizard steps
     document.getElementById('wizardSteps').classList.remove('hidden');
 
-    // Show appropriate wizard
     if (mode === 'encrypt') {
         document.getElementById('encryptWizard').classList.remove('hidden');
-        updateWizardStep(1);
     } else {
         document.getElementById('decryptWizard').classList.remove('hidden');
-        updateWizardStep(1);
     }
+    updateWizardStep(1);
+    refreshFileList(); // Refresh list on mode switch
 }
 
-// Reset Wizard
 function resetWizard() {
     currentMode = null;
     currentStep = 1;
-    encryptionData = {};
-    decryptionData = {};
+    selectedFiles = { encrypt: null, decrypt: { file: null, dek: null } };
 
-    // Hide all wizards
     document.getElementById('encryptWizard').classList.add('hidden');
     document.getElementById('decryptWizard').classList.add('hidden');
     document.getElementById('wizardSteps').classList.add('hidden');
     document.getElementById('errorAlert').classList.add('hidden');
 
-    // Reset file inputs
-    document.getElementById('encryptFileInput').value = '';
-    document.getElementById('decryptFileInput').value = '';
-    document.getElementById('decryptDekInput').value = '';
+    // Reset selects
+    document.querySelectorAll('select').forEach(s => s.value = '');
 
-    // Hide file info
+    // Hide info
     document.getElementById('encryptFileInfo').classList.add('hidden');
-    document.getElementById('decryptFileInfo').classList.add('hidden');
-    document.getElementById('decryptDekInfo').classList.add('hidden');
 
-    // Show mode selection
     document.getElementById('modeSelection').classList.remove('hidden');
 }
 
-// Update Wizard Steps
 function updateWizardStep(step) {
     currentStep = step;
-
     const steps = document.querySelectorAll('.wizard-step');
     steps.forEach((stepEl, index) => {
         const stepNum = index + 1;
         stepEl.classList.remove('active', 'completed');
-
-        if (stepNum < step) {
-            stepEl.classList.add('completed');
-        } else if (stepNum === step) {
-            stepEl.classList.add('active');
-        }
+        if (stepNum < step) stepEl.classList.add('completed');
+        else if (stepNum === step) stepEl.classList.add('active');
     });
 }
 
-// File Upload Handlers
-function setupFileUploadHandlers() {
-    // Encryption file upload
-    const encryptUploadArea = document.getElementById('encryptUploadArea');
-    const encryptFileInput = document.getElementById('encryptFileInput');
-
-    encryptUploadArea.addEventListener('click', () => encryptFileInput.click());
-    encryptFileInput.addEventListener('change', handleEncryptFileSelect);
-
-    // Drag and drop
-    encryptUploadArea.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        encryptUploadArea.classList.add('drag-over');
-    });
-
-    encryptUploadArea.addEventListener('dragleave', () => {
-        encryptUploadArea.classList.remove('drag-over');
-    });
-
-    encryptUploadArea.addEventListener('drop', (e) => {
-        e.preventDefault();
-        encryptUploadArea.classList.remove('drag-over');
-        if (e.dataTransfer.files.length > 0) {
-            encryptFileInput.files = e.dataTransfer.files;
-            handleEncryptFileSelect();
-        }
-    });
-
-    // Decryption file upload
-    const decryptFileUploadArea = document.getElementById('decryptFileUploadArea');
-    const decryptFileInput = document.getElementById('decryptFileInput');
-
-    decryptFileUploadArea.addEventListener('click', () => decryptFileInput.click());
-    decryptFileInput.addEventListener('change', handleDecryptFileSelect);
-
-    // Decryption DEK upload
-    const decryptDekUploadArea = document.getElementById('decryptDekUploadArea');
-    const decryptDekInput = document.getElementById('decryptDekInput');
-
-    decryptDekUploadArea.addEventListener('click', () => decryptDekInput.click());
-    decryptDekInput.addEventListener('change', handleDecryptDekSelect);
-}
-
-// Handle Encrypt File Selection
-function handleEncryptFileSelect() {
-    const fileInput = document.getElementById('encryptFileInput');
-    const file = fileInput.files[0];
-
-    if (file) {
-        document.getElementById('encryptFileName').textContent = file.name;
-        document.getElementById('encryptFileSize').textContent = formatFileSize(file.size);
-        document.getElementById('encryptFileInfo').classList.remove('hidden');
-        document.getElementById('encryptNextBtn').disabled = false;
-        encryptionData.file = file;
-    }
-}
-
-// Handle Decrypt File Selection
-function handleDecryptFileSelect() {
-    const fileInput = document.getElementById('decryptFileInput');
-    const file = fileInput.files[0];
-
-    if (file) {
-        document.getElementById('decryptFileName').textContent = file.name;
-        document.getElementById('decryptFileSize').textContent = formatFileSize(file.size);
-        document.getElementById('decryptFileInfo').classList.remove('hidden');
-        decryptionData.file = file;
-        checkDecryptReady();
-    }
-}
-
-// Handle Decrypt DEK Selection
-function handleDecryptDekSelect() {
-    const dekInput = document.getElementById('decryptDekInput');
-    const file = dekInput.files[0];
-
-    if (file) {
-        document.getElementById('decryptDekName').textContent = file.name;
-        document.getElementById('decryptDekInfo').classList.remove('hidden');
-        decryptionData.dekFile = file;
-        checkDecryptReady();
-    }
-}
-
-// Check if decryption is ready
 function checkDecryptReady() {
-    const ready = decryptionData.file && decryptionData.dekFile;
-    document.getElementById('decryptNextBtn').disabled = !ready;
+    const encFile = document.getElementById('decryptFileSelect').value;
+    const dekFile = document.getElementById('decryptDekSelect').value;
+
+    selectedFiles.decrypt.file = encFile;
+    selectedFiles.decrypt.dek = dekFile;
+
+    document.getElementById('decryptNextBtn').disabled = !(encFile && dekFile);
 }
 
 // Process Encryption
 async function processEncryption() {
     try {
+        if (!selectedFiles.encrypt) return;
+
         // Show step 2
         document.getElementById('encryptStep1').classList.add('hidden');
         document.getElementById('encryptStep2').classList.remove('hidden');
         updateWizardStep(2);
 
-        // Upload file
-        updateProgress('encrypt', 30, 'DEK 생성 중...');
-        const formData = new FormData();
-        formData.append('file', encryptionData.file);
+        // Select File (server-side)
+        updateProgress('encrypt', 20, '파일 확인 중...');
 
-        const uploadResponse = await fetch('/api/encrypt/upload', {
+        const selectResponse = await fetch('/api/encrypt/select', {
             method: 'POST',
-            body: formData
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: selectedFiles.encrypt })
         });
 
-        const uploadResult = await handleResponse(uploadResponse);
-        const fileId = uploadResult.data.fileId;
+        const selectResult = await handleResponse(selectResponse);
+        const fileId = selectResult.data.fileId;
 
-        // Process encryption
-        updateProgress('encrypt', 60, '파일 암호화 중...');
+        // Process Encryption
+        updateProgress('encrypt', 50, '암호화 및 저장 중...');
         const processResponse = await fetch(`/api/encrypt/process/${fileId}`, {
             method: 'POST'
         });
 
         const processResult = await handleResponse(processResponse);
-        encryptionData.result = processResult.data;
+        const result = processResult.data;
 
         // Complete
         updateProgress('encrypt', 100, '완료!');
@@ -201,7 +170,14 @@ async function processEncryption() {
             document.getElementById('encryptStep2').classList.add('hidden');
             document.getElementById('encryptStep3').classList.remove('hidden');
             updateWizardStep(3);
-            displayEncryptionResults();
+
+            document.getElementById('resultOriginalName').textContent = result.originalFilename;
+            document.getElementById('resultOriginalSize').textContent = formatFileSize(result.originalSize);
+            document.getElementById('resultEncryptedSize').textContent = formatFileSize(result.encryptedSize);
+            document.getElementById('resultEncryptedName').textContent = result.encryptedFilename;
+            document.getElementById('resultEncryptedDek').textContent = result.encryptedDek.substring(0, 50) + '...';
+
+            refreshFileList(); // Update lists for next time
         }, 500);
 
     } catch (error) {
@@ -213,33 +189,36 @@ async function processEncryption() {
 // Process Decryption
 async function processDecryption() {
     try {
+        if (!selectedFiles.decrypt.file || !selectedFiles.decrypt.dek) return;
+
         // Show step 2
         document.getElementById('decryptStep1').classList.add('hidden');
         document.getElementById('decryptStep2').classList.remove('hidden');
         updateWizardStep(2);
 
-        // Upload files
-        updateProgress('decrypt', 30, 'DEK 복호화 중...');
-        const formData = new FormData();
-        formData.append('encryptedFile', decryptionData.file);
-        formData.append('encryptedDek', decryptionData.dekFile);
+        // Select Files (server-side)
+        updateProgress('decrypt', 20, '파일 확인 중...');
 
-        const uploadResponse = await fetch('/api/decrypt/upload', {
+        const selectResponse = await fetch('/api/decrypt/select', {
             method: 'POST',
-            body: formData
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                encryptedFilename: selectedFiles.decrypt.file,
+                dekFilename: selectedFiles.decrypt.dek
+            })
         });
 
-        const uploadResult = await handleResponse(uploadResponse);
-        const fileId = uploadResult.data.fileId;
+        const selectResult = await handleResponse(selectResponse);
+        const fileId = selectResult.data.fileId;
 
-        // Process decryption
-        updateProgress('decrypt', 60, '파일 복호화 중...');
+        // Process Decryption
+        updateProgress('decrypt', 50, '복호화 및 저장 중...');
         const processResponse = await fetch(`/api/decrypt/process/${fileId}`, {
             method: 'POST'
         });
 
         const processResult = await handleResponse(processResponse);
-        decryptionData.result = processResult.data;
+        const result = processResult.data;
 
         // Complete
         updateProgress('decrypt', 100, '완료!');
@@ -248,7 +227,12 @@ async function processDecryption() {
             document.getElementById('decryptStep2').classList.add('hidden');
             document.getElementById('decryptStep3').classList.remove('hidden');
             updateWizardStep(3);
-            displayDecryptionResults();
+
+            document.getElementById('resultDecryptedName').textContent = result.originalFilename; // This might need adjustment if logic changed
+            document.getElementById('resultDecryptedEncSize').textContent = formatFileSize(result.encryptedSize);
+            document.getElementById('resultDecryptedSize').textContent = formatFileSize(result.decryptedSize);
+
+            refreshFileList();
         }, 500);
 
     } catch (error) {
@@ -257,40 +241,7 @@ async function processDecryption() {
     }
 }
 
-// Display Encryption Results
-function displayEncryptionResults() {
-    const result = encryptionData.result;
-    document.getElementById('resultOriginalName').textContent = result.originalFilename;
-    document.getElementById('resultOriginalSize').textContent = formatFileSize(result.originalSize);
-    document.getElementById('resultEncryptedSize').textContent = formatFileSize(result.encryptedSize);
-    document.getElementById('resultEncryptedDek').textContent = result.encryptedDek.substring(0, 50) + '...';
-}
-
-// Display Decryption Results
-function displayDecryptionResults() {
-    const result = decryptionData.result;
-    document.getElementById('resultDecryptedName').textContent = result.originalFilename;
-    document.getElementById('resultDecryptedEncSize').textContent = formatFileSize(result.encryptedSize);
-    document.getElementById('resultDecryptedSize').textContent = formatFileSize(result.decryptedSize);
-}
-
-// Download Functions
-function downloadEncryptedFile() {
-    const fileId = encryptionData.result.fileId;
-    window.location.href = `/api/encrypt/download/file/${fileId}`;
-}
-
-function downloadEncryptedDek() {
-    const fileId = encryptionData.result.fileId;
-    window.location.href = `/api/encrypt/download/dek/${fileId}`;
-}
-
-function downloadDecryptedFile() {
-    const fileId = decryptionData.result.fileId;
-    window.location.href = `/api/decrypt/download/${fileId}`;
-}
-
-// Utility Functions
+// Utils
 function updateProgress(mode, percent, text) {
     document.getElementById(`${mode}Progress`).style.width = `${percent}%`;
     document.getElementById(`${mode}ProgressText`).textContent = text;

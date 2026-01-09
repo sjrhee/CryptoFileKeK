@@ -13,9 +13,8 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.bind.annotation.*;
 
-import javax.crypto.SecretKey;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -36,42 +35,44 @@ public class EncryptionController {
     private final Map<String, EncryptionSession> sessions = new HashMap<>();
 
     /**
-     * Upload file for encryption
+     * Select file from server input directory for encryption
      */
-    @PostMapping("/upload")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> uploadFile(
-            @RequestParam("file") MultipartFile file) {
+    @PostMapping("/select")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> selectFile(
+            @RequestBody Map<String, String> payload) {
         try {
-            if (file.isEmpty()) {
+            String filename = payload.get("filename");
+            if (filename == null || filename.isEmpty()) {
                 return ResponseEntity.badRequest()
-                        .body(ApiResponse.error("Please select a file to upload"));
+                        .body(ApiResponse.error("Please provide a filename"));
             }
 
-            log.info("Received file for encryption: {} ({} bytes)",
-                    file.getOriginalFilename(), file.getSize());
+            log.info("Selected file for encryption: {}", filename);
 
-            // Store original file
-            byte[] fileData = file.getBytes();
-            String fileId = fileStorageService.storeFile(fileData, file.getOriginalFilename());
+            // Load file from input directory
+            var fileData = fileStorageService.readFromInput(filename);
+
+            // Store in temp session
+            var fileId = fileStorageService.storeTemp(fileData, filename);
 
             // Create session
-            EncryptionSession session = new EncryptionSession();
+            var session = new EncryptionSession();
             session.fileId = fileId;
-            session.originalFilename = file.getOriginalFilename();
+            session.originalFilename = filename;
             session.originalSize = fileData.length;
             sessions.put(fileId, session);
 
-            Map<String, Object> response = new HashMap<>();
+            var response = new HashMap<String, Object>();
             response.put("fileId", fileId);
-            response.put("filename", file.getOriginalFilename());
-            response.put("size", file.getSize());
+            response.put("filename", filename);
+            response.put("size", fileData.length);
 
-            return ResponseEntity.ok(ApiResponse.success("File uploaded successfully", response));
+            return ResponseEntity.ok(ApiResponse.success("File selected successfully", response));
 
         } catch (Exception e) {
-            log.error("Error uploading file", e);
+            log.error("Error selecting file", e);
             return ResponseEntity.internalServerError()
-                    .body(ApiResponse.error("Failed to upload file: " + e.getMessage()));
+                    .body(ApiResponse.error("Failed to select file: " + e.getMessage()));
         }
     }
 
@@ -82,7 +83,7 @@ public class EncryptionController {
     public ResponseEntity<ApiResponse<EncryptionResult>> processEncryption(
             @PathVariable String fileId) {
         try {
-            EncryptionSession session = sessions.get(fileId);
+            var session = sessions.get(fileId);
             if (session == null) {
                 return ResponseEntity.badRequest()
                         .body(ApiResponse.error("Invalid file ID or session expired"));
@@ -91,24 +92,35 @@ public class EncryptionController {
             log.info("Processing encryption for file: {}", session.originalFilename);
 
             // Step 1: Load original file
-            byte[] originalData = fileStorageService.loadFile(fileId);
+            var originalData = fileStorageService.loadTemp(fileId);
 
             // Step 2: Generate DEK
-            SecretKey dek = dekService.generateDek();
+            var dek = dekService.generateDek();
             log.info("Generated DEK");
 
             // Step 3: Encrypt file with DEK
-            byte[] encryptedData = fileEncryptionService.encryptFile(originalData, dek);
+            var encryptedData = fileEncryptionService.encryptFile(originalData, dek);
             log.info("Encrypted file with DEK");
 
             // Step 4: Encrypt DEK with HSM KEK
-            String encryptedDekBase64 = dekService.encryptDekToBase64(dek);
+            var encryptedDekBase64 = dekService.encryptDekToBase64(dek);
             log.info("Encrypted DEK with HSM KEK");
 
-            // Step 5: Store encrypted file
-            String encryptedFileId = fileStorageService.storeFile(
+            // Step 5: Save to output directory
+            String encryptedFilename = session.originalFilename + ".encrypted";
+            fileStorageService.writeToOutput(encryptedFilename, encryptedData);
+            log.info("Saved encrypted file to output: {}", encryptedFilename);
+
+            // Save DEK to output directory
+            String dekFilename = session.originalFilename + ".dek";
+            fileStorageService.writeToOutput(dekFilename, encryptedDekBase64.getBytes());
+            log.info("Saved DEK to output: {}", dekFilename);
+
+            // Also store in temp for download if needed (optional, but keep for flow
+            // consistency)
+            var encryptedFileId = fileStorageService.storeTemp(
                     encryptedData,
-                    session.originalFilename + ".encrypted");
+                    encryptedFilename);
 
             // Update session
             session.encryptedFileId = encryptedFileId;
@@ -116,7 +128,7 @@ public class EncryptionController {
             session.encryptedSize = encryptedData.length;
 
             // Create result
-            EncryptionResult result = new EncryptionResult(
+            var result = new EncryptionResult(
                     encryptedFileId,
                     session.originalFilename,
                     session.originalFilename + ".encrypted",
@@ -142,13 +154,13 @@ public class EncryptionController {
     @GetMapping("/download/file/{fileId}")
     public ResponseEntity<Resource> downloadEncryptedFile(@PathVariable String fileId) {
         try {
-            EncryptionSession session = sessions.get(fileId);
+            var session = sessions.get(fileId);
             if (session == null || session.encryptedFileId == null) {
                 return ResponseEntity.notFound().build();
             }
 
-            byte[] data = fileStorageService.loadFile(session.encryptedFileId);
-            ByteArrayResource resource = new ByteArrayResource(data);
+            var data = fileStorageService.loadTemp(session.encryptedFileId);
+            var resource = new ByteArrayResource(data);
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION,
@@ -169,13 +181,13 @@ public class EncryptionController {
     @GetMapping("/download/dek/{fileId}")
     public ResponseEntity<Resource> downloadEncryptedDek(@PathVariable String fileId) {
         try {
-            EncryptionSession session = sessions.get(fileId);
+            var session = sessions.get(fileId);
             if (session == null || session.encryptedDek == null) {
                 return ResponseEntity.notFound().build();
             }
 
-            byte[] data = session.encryptedDek.getBytes();
-            ByteArrayResource resource = new ByteArrayResource(data);
+            var data = session.encryptedDek.getBytes();
+            var resource = new ByteArrayResource(data);
 
             return ResponseEntity.ok()
                     .header(HttpHeaders.CONTENT_DISPOSITION,

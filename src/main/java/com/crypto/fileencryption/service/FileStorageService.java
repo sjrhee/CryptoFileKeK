@@ -19,17 +19,28 @@ import java.util.UUID;
 @Service
 public class FileStorageService {
 
-    @Value("${file.storage.location:./temp-storage}")
-    private String storageLocation;
+    @Value("${file.storage.location:./DATA}")
+    private String baseLocation;
 
-    private Path rootLocation;
+    private Path inputLocation;
+    private Path outputLocation;
+    private Path tempLocation;
 
     @PostConstruct
     public void init() {
         try {
-            rootLocation = Paths.get(storageLocation);
-            Files.createDirectories(rootLocation);
-            log.info("File storage initialized at: {}", rootLocation.toAbsolutePath());
+            Path root = Paths.get(baseLocation).toAbsolutePath().normalize();
+            inputLocation = root;
+            outputLocation = root;
+            tempLocation = root.resolve(".temp");
+
+            Files.createDirectories(inputLocation);
+            Files.createDirectories(outputLocation);
+            Files.createDirectories(tempLocation);
+
+            log.info("File storage initialized.");
+            log.info("Base Root (DATA): {}", root);
+            log.info("Input/Output: {}", inputLocation);
         } catch (IOException e) {
             log.error("Failed to initialize file storage", e);
             throw new RuntimeException("Could not initialize storage", e);
@@ -37,79 +48,54 @@ public class FileStorageService {
     }
 
     /**
-     * Store file data with a unique identifier
-     * 
-     * @param data             File data
-     * @param originalFilename Original filename
-     * @return Unique file identifier
+     * List all files in input directory
      */
-    public String storeFile(byte[] data, String originalFilename) throws IOException {
-        String fileId = UUID.randomUUID().toString();
-        Path filePath = rootLocation.resolve(fileId);
-        Files.write(filePath, data);
+    public java.util.List<String> listInputFiles() throws IOException {
+        try (var stream = Files.list(inputLocation)) {
+            return stream
+                    .filter(Files::isRegularFile)
+                    .map(Path::getFileName)
+                    .map(Path::toString)
+                    .collect(java.util.stream.Collectors.toList());
+        }
+    }
 
-        log.info("Stored file: {} (original: {})", fileId, originalFilename);
+    /**
+     * Read file from input directory
+     */
+    public byte[] readFromInput(String filename) throws IOException {
+        var filePath = inputLocation.resolve(filename).normalize();
+        if (!filePath.startsWith(inputLocation)) {
+            throw new SecurityException("Invalid file path");
+        }
+        if (!Files.exists(filePath)) {
+            throw new IOException("File not found: " + filename);
+        }
+        return Files.readAllBytes(filePath);
+    }
+
+    /**
+     * Write data to output directory
+     */
+    public void writeToOutput(String filename, byte[] data) throws IOException {
+        var filePath = outputLocation.resolve(filename).normalize();
+        if (!filePath.startsWith(outputLocation)) {
+            throw new SecurityException("Invalid file path");
+        }
+        Files.write(filePath, data);
+        log.info("Saved result to: {}", filePath);
+    }
+
+    // Legacy temp storage support for internal processing if needed
+    public String storeTemp(byte[] data, String originalFilename) throws IOException {
+        var fileId = UUID.randomUUID().toString();
+        var filePath = tempLocation.resolve(fileId);
+        Files.write(filePath, data);
         return fileId;
     }
 
-    /**
-     * Load file data by identifier
-     * 
-     * @param fileId File identifier
-     * @return File data
-     */
-    public byte[] loadFile(String fileId) throws IOException {
-        Path filePath = rootLocation.resolve(fileId);
-
-        if (!Files.exists(filePath)) {
-            throw new IOException("File not found: " + fileId);
-        }
-
-        byte[] data = Files.readAllBytes(filePath);
-        log.debug("Loaded file: {} ({} bytes)", fileId, data.length);
-        return data;
-    }
-
-    /**
-     * Delete file by identifier
-     * 
-     * @param fileId File identifier
-     */
-    public void deleteFile(String fileId) {
-        try {
-            Path filePath = rootLocation.resolve(fileId);
-            Files.deleteIfExists(filePath);
-            log.debug("Deleted file: {}", fileId);
-        } catch (IOException e) {
-            log.warn("Failed to delete file: {}", fileId, e);
-        }
-    }
-
-    /**
-     * Clean up old files (can be scheduled)
-     */
-    public void cleanupOldFiles() {
-        try {
-            Files.list(rootLocation)
-                    .filter(Files::isRegularFile)
-                    .forEach(path -> {
-                        try {
-                            Files.delete(path);
-                            log.debug("Cleaned up file: {}", path.getFileName());
-                        } catch (IOException e) {
-                            log.warn("Failed to delete file during cleanup: {}", path, e);
-                        }
-                    });
-            log.info("File cleanup completed");
-        } catch (IOException e) {
-            log.error("Failed to cleanup files", e);
-        }
-    }
-
-    /**
-     * Get storage root path
-     */
-    public Path getRootLocation() {
-        return rootLocation;
+    public byte[] loadTemp(String fileId) throws IOException {
+        var filePath = tempLocation.resolve(fileId);
+        return Files.readAllBytes(filePath);
     }
 }

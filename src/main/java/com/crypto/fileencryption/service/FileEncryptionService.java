@@ -35,19 +35,19 @@ public class FileEncryptionService {
         log.debug("Encrypting file data. Size: {} bytes", fileData.length);
 
         // Generate random IV
-        byte[] iv = new byte[IV_SIZE];
+        var iv = new byte[IV_SIZE];
         secureRandom.nextBytes(iv);
 
         // Initialize cipher
-        Cipher cipher = Cipher.getInstance(ALGORITHM);
-        GCMParameterSpec parameterSpec = new GCMParameterSpec(TAG_SIZE, iv);
+        var cipher = Cipher.getInstance(ALGORITHM);
+        var parameterSpec = new GCMParameterSpec(TAG_SIZE, iv);
         cipher.init(Cipher.ENCRYPT_MODE, dek, parameterSpec);
 
         // Encrypt
-        byte[] ciphertext = cipher.doFinal(fileData);
+        var ciphertext = cipher.doFinal(fileData);
 
         // Combine IV + ciphertext (ciphertext already includes GCM tag)
-        byte[] result = new byte[IV_SIZE + ciphertext.length];
+        var result = new byte[IV_SIZE + ciphertext.length];
         System.arraycopy(iv, 0, result, 0, IV_SIZE);
         System.arraycopy(ciphertext, 0, result, IV_SIZE, ciphertext.length);
 
@@ -71,16 +71,16 @@ public class FileEncryptionService {
         }
 
         // Extract IV and encrypted data
-        byte[] iv = Arrays.copyOfRange(encryptedData, 0, IV_SIZE);
-        byte[] ciphertext = Arrays.copyOfRange(encryptedData, IV_SIZE, encryptedData.length);
+        var iv = Arrays.copyOfRange(encryptedData, 0, IV_SIZE);
+        var ciphertext = Arrays.copyOfRange(encryptedData, IV_SIZE, encryptedData.length);
 
         // Initialize cipher
-        Cipher cipher = Cipher.getInstance(ALGORITHM);
-        GCMParameterSpec parameterSpec = new GCMParameterSpec(TAG_SIZE, iv);
+        var cipher = Cipher.getInstance(ALGORITHM);
+        var parameterSpec = new GCMParameterSpec(TAG_SIZE, iv);
         cipher.init(Cipher.DECRYPT_MODE, dek, parameterSpec);
 
         // Decrypt
-        byte[] plaintext = cipher.doFinal(ciphertext);
+        var plaintext = cipher.doFinal(ciphertext);
 
         log.info("File decrypted successfully. Encrypted size: {} bytes, Decrypted size: {} bytes",
                 encryptedData.length, plaintext.length);

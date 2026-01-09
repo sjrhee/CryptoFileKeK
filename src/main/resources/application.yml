@@ -15,7 +15,7 @@ spring:
 # File storage configuration
 file:
   storage:
-    location: ./temp-storage
+    location: ./DATA
     cleanup-interval: 3600000  # 1 hour in milliseconds
 
 # HSM configuration (placeholder for real HSM integration)
