@@ -138,7 +138,7 @@ public class EncryptionController {
                     "File encrypted successfully",
                     true);
 
-            log.info("Encryption completed successfully");
+            log.info("Encryption completed successfully. Encrypted DEK length: {}", encryptedDekBase64.length());
             return ResponseEntity.ok(ApiResponse.success(result));
 
         } catch (Exception e) {

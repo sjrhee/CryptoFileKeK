@@ -208,7 +208,23 @@ async function processEncryption() {
             document.getElementById('resultOriginalSize').textContent = formatFileSize(result.originalSize);
             document.getElementById('resultEncryptedSize').textContent = formatFileSize(result.encryptedSize);
             document.getElementById('resultEncryptedName').textContent = result.encryptedFilename;
-            document.getElementById('resultEncryptedDek').textContent = result.encryptedDek.substring(0, 50) + '...';
+            console.log(" Encryption Result Object:", result);
+            console.log(" Encrypted DEK value:", result.encryptedDek);
+
+            const dekElement = document.getElementById('dekDisplayArea');
+            if (dekElement) {
+                console.log(" Found DEK Element:", dekElement);
+                const dekValue = result.encryptedDek;
+                if (dekValue && dekValue.length > 0) {
+                    dekElement.textContent = dekValue;
+                } else {
+                    dekElement.textContent = '(Error: Server returned empty key)';
+                    dekElement.style.color = '#ff6b6b'; // Red color for error
+                }
+                console.log(" Set DEK Element text to:", dekElement.textContent);
+            } else {
+                console.error(" CRITICAL: Could not find element with ID 'dekDisplayArea'");
+            }
 
             refreshFileList(); // Update lists for next time
         }, 500);
