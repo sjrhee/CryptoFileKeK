@@ -46,3 +46,8 @@ application.pid
 DATA/*
 !DATA/.gitkeep
 
+
+# Test and Key files
+*_test.txt
+*.bin
+*.key

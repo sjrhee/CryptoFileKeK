@@ -48,6 +48,8 @@ public class SimulatedHsmService implements HsmService {
     private SecretKey kek;
     private final SecureRandom secureRandom = new SecureRandom();
 
+    private static final String KEK_FILE = "simulated_kek.key";
+
     @PostConstruct
     public void init() throws Exception {
         // In a real HSM, the KEK would be stored securely in the HSM
@@ -55,10 +57,32 @@ public class SimulatedHsmService implements HsmService {
         log.info("Initializing simulated HSM service");
         log.warn("WARNING: Using simulated HSM. Replace with actual HSM in production!");
 
+        // Try to load existing KEK
+        java.io.File kekFile = new java.io.File(KEK_FILE);
+        if (kekFile.exists()) {
+            try {
+                byte[] keyBytes = java.nio.file.Files.readAllBytes(kekFile.toPath());
+                this.kek = new SecretKeySpec(keyBytes, "AES");
+                log.info("Loaded existing KEK from {}", KEK_FILE);
+                return;
+            } catch (Exception e) {
+                log.error("Failed to load existing KEK", e);
+                // Fallback to generating new one
+            }
+        }
+
         // Generate a simulated KEK
         KeyGenerator keyGen = KeyGenerator.getInstance("AES");
         keyGen.init(kekKeySize, secureRandom);
         this.kek = keyGen.generateKey();
+
+        // Save KEK to file for persistence
+        try {
+            java.nio.file.Files.write(kekFile.toPath(), this.kek.getEncoded());
+            log.info("Generated and saved new KEK to {}", KEK_FILE);
+        } catch (Exception e) {
+            log.error("Failed to save KEK", e);
+        }
 
         log.info("Simulated KEK initialized with {} bits", kekKeySize);
     }

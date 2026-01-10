@@ -38,6 +38,8 @@ public class FileStorageService {
             Files.createDirectories(outputLocation);
             Files.createDirectories(tempLocation);
 
+            cleanTempDirectory();
+
             log.info("File storage initialized.");
             log.info("Base Root (DATA): {}", root);
             log.info("Input/Output: {}", inputLocation);
@@ -82,7 +84,8 @@ public class FileStorageService {
         if (!filePath.startsWith(outputLocation)) {
             throw new SecurityException("Invalid file path");
         }
-        Files.write(filePath, data);
+        Files.write(filePath, data, java.nio.file.StandardOpenOption.CREATE,
+                java.nio.file.StandardOpenOption.TRUNCATE_EXISTING, java.nio.file.StandardOpenOption.WRITE);
         log.info("Saved result to: {}", filePath);
     }
 
@@ -97,5 +100,34 @@ public class FileStorageService {
     public byte[] loadTemp(String fileId) throws IOException {
         var filePath = tempLocation.resolve(fileId);
         return Files.readAllBytes(filePath);
+    }
+
+    public void deleteTemp(String fileId) {
+        try {
+            var filePath = tempLocation.resolve(fileId);
+            Files.deleteIfExists(filePath);
+            log.info("Deleted temp file: {}", fileId);
+        } catch (IOException e) {
+            log.warn("Failed to delete temp file: {}", fileId, e);
+        }
+    }
+
+    private void cleanTempDirectory() {
+        try {
+            if (Files.exists(tempLocation)) {
+                try (var stream = Files.list(tempLocation)) {
+                    stream.forEach(path -> {
+                        try {
+                            Files.delete(path);
+                        } catch (IOException e) {
+                            log.warn("Failed to delete old temp file: {}", path, e);
+                        }
+                    });
+                }
+                log.info("Cleaned temp directory: {}", tempLocation);
+            }
+        } catch (IOException e) {
+            log.error("Failed to clean temp directory", e);
+        }
     }
 }

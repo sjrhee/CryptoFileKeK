@@ -235,6 +235,26 @@ async function processEncryption() {
                 }
             }
 
+            // Update Download Buttons
+            const downloadFileBtn = document.getElementById('downloadEncryptedFileBtn');
+            const downloadDekBtn = document.getElementById('downloadDekBtn');
+
+            console.log('Setting download links for session:', fileId);
+
+            if (downloadFileBtn) {
+                // Use persistent endpoint based on filename
+                downloadFileBtn.href = `/api/files/download/${encodeURIComponent(result.encryptedFilename)}`;
+                // User Request: Force the filename to be the actual encrypted filename
+                downloadFileBtn.setAttribute('download', result.encryptedFilename);
+            }
+
+            if (downloadDekBtn) {
+                const dekFilename = result.originalFilename + '.dek';
+                downloadDekBtn.href = `/api/files/download/${encodeURIComponent(dekFilename)}`;
+                // User Request: Force the filename to be the DEK filename
+                downloadDekBtn.setAttribute('download', dekFilename);
+            }
+
             refreshFileList(); // Update lists for next time
         }, 500);
 
@@ -296,6 +316,43 @@ async function processDecryption() {
     } catch (error) {
         showError(error.message);
         resetToStep1('decrypt');
+    }
+}
+
+// Upload Files
+async function uploadFiles() {
+    const input = document.getElementById('uploadInput');
+    const files = input.files;
+
+    if (!files || files.length === 0) {
+        alert('Please select files to upload.');
+        return;
+    }
+
+    try {
+        let uploadedCount = 0;
+        for (let i = 0; i < files.length; i++) {
+            const formData = new FormData();
+            formData.append('file', files[i]);
+
+            const response = await fetch('/api/files/upload', {
+                method: 'POST',
+                body: formData
+            });
+
+            const result = await handleResponse(response);
+            if (result.success) uploadedCount++;
+        }
+
+        alert(`Successfully uploaded ${uploadedCount} file(s).`);
+        input.value = ''; // Clear input
+
+        // Refresh list and try to auto-select uploaded files
+        await refreshFileList();
+
+    } catch (error) {
+        console.error('Upload failed', error);
+        showError('Failed to upload files: ' + error.message);
     }
 }
 

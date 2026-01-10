@@ -116,20 +116,18 @@ public class EncryptionController {
             fileStorageService.writeToOutput(dekFilename, encryptedDekBase64.getBytes());
             log.info("Saved DEK to output: {}", dekFilename);
 
-            // Also store in temp for download if needed (optional, but keep for flow
-            // consistency)
-            var encryptedFileId = fileStorageService.storeTemp(
-                    encryptedData,
-                    encryptedFilename);
+            // Cleanup: Delete the input temp file now that processing is done
+            fileStorageService.deleteTemp(fileId);
 
-            // Update session
-            session.encryptedFileId = encryptedFileId;
+            // Update session (Only what is needed for simple status, no IDs for download
+            // needed now)
             session.encryptedDek = encryptedDekBase64;
             session.encryptedSize = encryptedData.length;
+            // session.encryptedFileId is no longer needed/stored in temp
 
             // Create result
             var result = new EncryptionResult(
-                    encryptedFileId,
+                    null,
                     session.originalFilename,
                     session.originalFilename + ".encrypted",
                     session.originalSize,

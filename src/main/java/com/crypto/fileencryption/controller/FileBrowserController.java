@@ -27,4 +27,38 @@ public class FileBrowserController {
                     .body(ApiResponse.error("Failed to list files: " + e.getMessage()));
         }
     }
+
+    @GetMapping("/download/{filename}")
+    public ResponseEntity<org.springframework.core.io.Resource> downloadFile(
+            @org.springframework.web.bind.annotation.PathVariable String filename) {
+        try {
+            var data = fileStorageService.readFromInput(filename);
+            var resource = new org.springframework.core.io.ByteArrayResource(data);
+
+            return ResponseEntity.ok()
+                    .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                            "attachment; filename=\"" + filename + "\"")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_OCTET_STREAM)
+                    .contentLength(data.length)
+                    .body(resource);
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/upload")
+    public ResponseEntity<ApiResponse<String>> uploadFile(
+            @org.springframework.web.bind.annotation.RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        try {
+            if (file.isEmpty()) {
+                return ResponseEntity.badRequest().body(ApiResponse.error("File is empty"));
+            }
+            String filename = file.getOriginalFilename();
+            fileStorageService.writeToOutput(filename, file.getBytes());
+            return ResponseEntity.ok(ApiResponse.success("File uploaded successfully", filename));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Failed to upload file: " + e.getMessage()));
+        }
+    }
 }
