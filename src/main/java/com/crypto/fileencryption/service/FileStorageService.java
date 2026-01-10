@@ -77,6 +77,18 @@ public class FileStorageService {
     }
 
     /**
+     * Delete file from input directory
+     */
+    public void deleteFile(String filename) throws IOException {
+        var filePath = inputLocation.resolve(filename).normalize();
+        if (!filePath.startsWith(inputLocation)) {
+            throw new SecurityException("Invalid file path");
+        }
+        Files.deleteIfExists(filePath);
+        log.info("Deleted file: {}", filePath);
+    }
+
+    /**
      * Write data to output directory
      */
     public void writeToOutput(String filename, byte[] data) throws IOException {
@@ -112,7 +124,7 @@ public class FileStorageService {
         }
     }
 
-    private void cleanTempDirectory() {
+    public void cleanTempDirectory() {
         try {
             if (Files.exists(tempLocation)) {
                 try (var stream = Files.list(tempLocation)) {

@@ -61,4 +61,27 @@ public class FileBrowserController {
                     .body(ApiResponse.error("Failed to upload file: " + e.getMessage()));
         }
     }
+
+    @org.springframework.web.bind.annotation.DeleteMapping("/{filename}")
+    public ResponseEntity<ApiResponse<Void>> deleteFile(
+            @org.springframework.web.bind.annotation.PathVariable String filename) {
+        try {
+            fileStorageService.deleteFile(filename);
+            return ResponseEntity.ok(ApiResponse.success("File deleted successfully", null));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Failed to delete file: " + e.getMessage()));
+        }
+    }
+
+    @org.springframework.web.bind.annotation.PostMapping("/cleanup-temp")
+    public ResponseEntity<ApiResponse<Void>> cleanupTemp() {
+        try {
+            fileStorageService.cleanTempDirectory();
+            return ResponseEntity.ok(ApiResponse.success("Temp directory cleaned", null));
+        } catch (Exception e) {
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.error("Failed to clean temp directory: " + e.getMessage()));
+        }
+    }
 }
