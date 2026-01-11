@@ -183,6 +183,142 @@ const UI = {
 };
 
 // ==========================================
+// 3.5 SETTINGS MODULE
+// ==========================================
+const Settings = {
+    init() {
+        console.log("Settings: Initializing...");
+        const btn = document.getElementById("settingsBtn");
+        const modal = document.getElementById("settingsModal");
+        const closeBtn = document.getElementById("settingsCloseBtn");
+        const cancelBtn = document.getElementById("settingsCancelBtn");
+        const saveBtn = document.getElementById("settingsSaveBtn");
+        const checkbox = document.getElementById("useHsmCheckbox");
+
+        if (btn && modal) {
+            btn.addEventListener('click', (e) => {
+                console.log("Settings: Opening modal");
+                modal.classList.add('flex');
+                modal.classList.remove('hidden');
+                this.loadStatus();
+            });
+
+            // Close handles
+            if (closeBtn) closeBtn.addEventListener('click', () => this.close());
+            if (cancelBtn) cancelBtn.addEventListener('click', () => this.close());
+            if (saveBtn) saveBtn.addEventListener('click', () => this.save());
+            if (checkbox) checkbox.addEventListener('change', () => this.togglePinInput());
+
+            // Close on outside click
+            window.addEventListener('click', (event) => {
+                if (event.target === modal) {
+                    console.log("Settings: Closing via outside click");
+                    this.close();
+                }
+            });
+        } else {
+            console.error("Settings: Required elements not found!", { btn, modal });
+        }
+    },
+
+    close() {
+        console.log("Settings: Closing modal");
+        const modal = document.getElementById("settingsModal");
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+        const errorDiv = document.getElementById("settingsError");
+        if (errorDiv) errorDiv.classList.add('hidden');
+    },
+
+    togglePinInput() {
+        console.log("Settings: Toggling PIN input");
+        const checkbox = document.getElementById("useHsmCheckbox");
+        const pinInput = document.getElementById("hsmPin");
+        if (checkbox && pinInput) {
+            const useHsm = checkbox.checked;
+            pinInput.disabled = !useHsm;
+            console.log("Settings: Use HSM =", useHsm);
+            if (!useHsm) {
+                pinInput.value = '';
+                const errorDiv = document.getElementById("settingsError");
+                if (errorDiv) errorDiv.classList.add('hidden');
+            }
+        }
+    },
+
+    async loadStatus() {
+        console.log("Settings: Loading status...");
+        try {
+            const response = await fetch('/api/hsm/status');
+            if (response.ok) {
+                const status = await response.json();
+                console.log("Settings: Received status", status);
+                const checkbox = document.getElementById("useHsmCheckbox");
+                if (checkbox) {
+                    checkbox.checked = status.useHsm;
+                    this.togglePinInput();
+                }
+            } else {
+                console.error("Settings: Failed to load status", response.status);
+            }
+        } catch (error) {
+            console.error("Settings: Failed to load HSM status", error);
+        }
+    },
+
+    async save() {
+        console.log("Settings: Saving configuration...");
+        const checkbox = document.getElementById("useHsmCheckbox");
+        const pinInput = document.getElementById("hsmPin");
+        const errorDiv = document.getElementById("settingsError");
+
+        if (!checkbox || !pinInput || !errorDiv) {
+            console.error("Settings: Save failed due to missing elements", { checkbox, pinInput, errorDiv });
+            return;
+        }
+
+        const useHsm = checkbox.checked;
+        const pin = pinInput.value;
+
+        console.log("Settings: Saving", { useHsm, pinHasValue: !!pin });
+
+        // Validation
+        if (useHsm && (!pin || pin.trim() === '')) {
+            errorDiv.textContent = "PIN is required when using HSM.";
+            errorDiv.classList.remove('hidden');
+            console.warn("Settings: Save aborted - PIN required");
+            return;
+        }
+
+        try {
+            errorDiv.classList.add('hidden');
+            const response = await fetch('/api/hsm/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ useHsm: useHsm, pin: pin })
+            });
+
+            if (response.ok) {
+                console.log("Settings: Save successful");
+                this.close();
+                alert("Settings saved successfully!");
+            } else {
+                const errorText = await response.text();
+                console.error("Settings: Save failed", errorText);
+                errorDiv.textContent = "Error: " + errorText;
+                errorDiv.classList.remove('hidden');
+            }
+        } catch (error) {
+            console.error("Settings: Save network error", error);
+            errorDiv.textContent = "Network Error: " + error.message;
+            errorDiv.classList.remove('hidden');
+        }
+    }
+};
+
+// ==========================================
 // 4. APP CONTROLLER
 // ==========================================
 const App = {
@@ -190,6 +326,7 @@ const App = {
         document.addEventListener('DOMContentLoaded', () => {
             this.setupHandlers();
             this.refreshFileList();
+            Settings.init(); // Initialize settings
         });
     },
 
@@ -471,6 +608,13 @@ window.resetWizard = () => App.resetWizard();
 window.restartCurrentMode = () => App.restartCurrentMode();
 window.processEncryption = () => App.processEncryption();
 window.processDecryption = () => App.processDecryption();
+
+// Expose Settings via App for HTML onclick handlers
+window.App = {
+    selectMode: (m) => App.selectMode(m),
+    resetWizard: () => App.resetWizard(),
+    Settings: Settings
+};
 
 // Initialize App
 App.init();

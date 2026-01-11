@@ -72,6 +72,15 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
+        <!-- SafeNet JCProv (System Path) -->
+        <dependency>
+            <groupId>safenet</groupId>
+            <artifactId>jcprov</artifactId>
+            <version>7.3.0</version>
+            <scope>system</scope>
+            <systemPath>/opt/safenet/protecttoolkit7/ptk/lib/jcprov.jar</systemPath>
+        </dependency>
     </dependencies>
 
     <build>
@@ -80,6 +89,7 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
                 <configuration>
+                    <includeSystemScope>true</includeSystemScope>
                     <excludes>
                         <exclude>
                             <groupId>org.projectlombok</groupId>
