@@ -30,18 +30,18 @@
 ### 1. 시스템 아키텍처 (System Architecture)
 ```mermaid
 graph TD
-    User[사용자 (Browser)]
+    User["사용자 (Browser)"]
     
     subgraph "Spring Boot Server"
-        Controller[Encryption/Decryption Controller]
-        FES[File Encryption Service]
-        DS[Dek Service]
-        FSS[File Storage Service]
-        HSM_S[Simulated HSM Service]
+        Controller["Encryption/Decryption Controller"]
+        FES["File Encryption Service"]
+        DS["Dek Service"]
+        FSS["File Storage Service"]
+        HSM_S["Simulated HSM Service"]
     end
     
-    FS[File System (DATA)]
-    HSM[HSM (Logical/Physcial)]
+    FS["File System (DATA)"]
+    HSM["HSM (Logical/Physical)"]
     
     User -->|HTTP Request| Controller
     Controller --> FSS
