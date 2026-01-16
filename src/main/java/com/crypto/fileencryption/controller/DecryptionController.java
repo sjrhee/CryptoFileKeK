@@ -107,6 +107,9 @@ public class DecryptionController {
             var decryptedData = fileEncryptionService.decryptFile(encryptedData, dek);
             log.info("Decrypted file with DEK");
 
+            // SECURITY: Destroy plaintext DEK immediately after use
+            dekService.destroyDek(dek);
+
             // Step 4: Save decrypted file to output
             String decryptedFilename = session.originalFilename.replace(".encrypted", "");
             if (decryptedFilename.equals(session.originalFilename)) {

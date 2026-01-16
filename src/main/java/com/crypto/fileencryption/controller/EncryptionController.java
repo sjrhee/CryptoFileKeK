@@ -137,6 +137,10 @@ public class EncryptionController {
                     true);
 
             log.info("Encryption completed successfully. Encrypted DEK length: {}", encryptedDekBase64.length());
+
+            // SECURITY: Destroy plaintext DEK
+            dekService.destroyDek(dek);
+
             return ResponseEntity.ok(ApiResponse.success(result));
 
         } catch (Exception e) {

@@ -95,4 +95,23 @@ public class DekService {
         byte[] encryptedDek = Base64.getDecoder().decode(encryptedDekBase64);
         return decryptDek(encryptedDek);
     }
+
+    /**
+     * Destroy the plaintext DEK explicitly if possible
+     * Note: Standard Java SecretKeySpec might not support this, but good practice.
+     */
+    public void destroyDek(SecretKey dek) {
+        if (dek == null)
+            return;
+        try {
+            if (!dek.isDestroyed()) {
+                dek.destroy();
+                log.debug("DEK explicitly destroyed");
+            }
+        } catch (javax.security.auth.DestroyFailedException e) {
+            log.warn("DEK does not support explicit destruction (likely standard SecretKeySpec/immutable)", e);
+        } catch (Exception e) {
+            log.warn("Error destroying DEK", e);
+        }
+    }
 }
